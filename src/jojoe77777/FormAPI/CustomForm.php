@@ -5,6 +5,8 @@ declare(strict_types = 1);
 namespace jojoe77777\FormAPI;
 
 use pocketmine\form\FormValidationException;
+use function count;
+use function var_dump;
 
 class CustomForm extends Form {
 
@@ -26,9 +28,46 @@ class CustomForm extends Form {
             throw new FormValidationException("Expected an array response, got " . gettype($data));
         }
         if(is_array($data)) {
-            if(count($data) !== count($this->validationMethods)) {
-                throw new FormValidationException("Expected an array response with the size " . count($this->validationMethods) . ", got " . count($data));
-            }
+			$actual = count($data);
+			$expected = count($this->validationMethods);
+            if($actual > $expected) {
+                throw new FormValidationException("Too many result elements, expected $expected, got $actual");
+            }elseif($actual < $expected){
+				//In 1.21.70, the client doesn't send nulls for labels, so we need to polyfill them here to
+				//maintain the old behaviour
+				$noLabelsIndexMapping = [];
+				foreach($this->data["content"] as $index => ["type" => $r]){
+					if($r !== "label"){
+						$noLabelsIndexMapping[] = $index;
+					}
+				}
+				$expectedWithoutLabels = count($noLabelsIndexMapping);
+				if($actual !== $expectedWithoutLabels){
+					throw new FormValidationException("Wrong number of result elements, expected either " .
+						$expected .
+						" (with label values, <1.21.70) or " .
+						$expectedWithoutLabels .
+						" (without label values, >=1.21.70), got " .
+						$actual
+					);
+				}
+
+				//polyfill the missing nulls
+				$mappedData = array_fill(0, $expected, null);
+				foreach($data as $givenIndex => $value){
+					$internalIndex = $noLabelsIndexMapping[$givenIndex] ?? null;
+					if($internalIndex === null){
+						throw new FormValidationException("Can't map given offset $givenIndex to an internal element offset (while correcting for labels)");
+					}
+					//set the appropriate values according to the given index
+					//this could (?) still leave unexpected nulls, but the validation below will catch that
+					$mappedData[$internalIndex] = $value;
+				}
+				if(count($mappedData) !== $expected){
+					throw new FormValidationException("This should always match");
+				}
+				$data = $mappedData;
+			}
             $new = [];
             foreach($data as $i => $v) {
                 $validationMethod = $this->validationMethods[$i] ?? null;
