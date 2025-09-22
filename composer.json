@@ -1,0 +1,15 @@
+{
+    "name": "xan6x/formapi",
+    "description": "FormAPI library for PocketMine-MP",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "jojoe77777\\FormAPI\\": ""
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=8.0"
+    }
+}
